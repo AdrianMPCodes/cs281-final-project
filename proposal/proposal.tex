@@ -1,0 +1,37 @@
+\documentclass[twoside,11pt]{article}
+
+\usepackage{cs281-jmlr2e}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{url}
+
+\begin{document}
+
+\title{Trusting the Trace: Auditing LLM Chain-of-Thought Faithfulness in Loan Underwriting}
+
+\name{Adrian Mendoza Perez}
+\email{mendy@stanford.edu}
+
+\maketitle
+
+\section{Problem}
+When a bank rejects your mortgage application, federal law requires a specific reason. That requirement, codified in Reg.~B \S 1002.9, exists because creditors have a long history of hiding discriminatory decisions behind vague denials. Now lenders are beginning to automate underwriting with LLMs (Upstart and Zest AI), raising the risk that model-generated explanations or reasoning traces will be treated as evidence that a decision was properly justified. This project asks whether those explanations actually reveal the basis for the decision when demographic counterfactuals change the outcome.
+
+The concern comes from two well-documented problems that are rarely studied together in the lending setting: frontier LLMs can show race, gender, and age sensitivity in synthetic loan and hiring decision scenarios \citep{tamkin2023evaluating, haim2024whats}, and model-generated reasoning can omit or misrepresent the features behind a decision \citep{turpin2023language, chen2025reasoning, baker2025monitoring, lanham2023measuring}. If both are true simultaneously, a rejected applicant could receive an explanation that appears to satisfy the law but obscures the real reason for the denial. This is especially serious in lending, where demographic disparities have a long regulatory history and explanations are central to accountability.
+
+This project audits that concern directly. I feed counterfactually paired loan applications, identical except for the applicant's race, gender, or age, to three frontier reasoning models (GPT-5.5, Claude Opus 4.7, and DeepSeek-R1). If the model approves one version and denies the other, I treat the decision as counterfactually sensitive to the demographic field. The question is then whether the model's reasoning reveals this sensitivity. When a model exposes a separate reasoning trace, I analyze that Chain-of-Thought (CoT) trace directly; when it does not, I analyze the explanation returned with the approve/deny label as the closest available proxy. If the model denies one applicant and approves their demographic twin, but the explanation never mentions the only field that changed, the reasoning obscures the demographic sensitivity revealed by the counterfactual flip. After measuring discriminatory flips and whether explanations mention the changed demographic field, I add a single baseline intervention: a prompt prefix instructing the model to ignore race, gender, and age when deciding \citep{tamkin2023evaluating}. I report both rates before and after the prefix to see whether mitigation reduces discriminatory decisions or mostly changes what the model is willing to say.
+
+\section{Data}
+The primary dataset is Discrim-Eval \citep{tamkin2023evaluating}, published on HuggingFace as \texttt{Anthropic/discrim-eval}. I filter it to the lending and financial scenarios so each row corresponds to a synthetic lending decision prompt. Discrim-Eval is built from a fixed set of scenario templates combined with demographic fields (race, gender, age), which lets me construct counterfactual pairs.
+
+For each evaluated model, I log three artifacts for every prompt: (i) a parsed binary lending outcome (approve vs.\ deny) under a fixed output format, (ii) the model's generated reasoning text, using the API-exposed CoT trace when available and the explanation returned with the label otherwise, and (iii) metadata needed to audit measurement failures, including model snapshot/version, whether a separate reasoning trace was returned, and whether parsing succeeded.
+
+\section{Experiments}
+By the milestone, I will have an end-to-end audit pipeline running on the lending subset of \texttt{Anthropic/discrim-eval}. I run each counterfactual prompt variant through GPT-5.5, Claude Opus 4.7, and DeepSeek-R1, then compare paired prompts that are identical except for race, gender, or age. I also rerun the same evaluation with one baseline intervention: a prompt prefix instructing the model to ignore race, gender, and age when deciding \citep{tamkin2023evaluating}. The output format stays fixed across both runs, so I can compare decisions and reasoning text before and after the intervention.
+
+Quantitatively, the main outcome is the counterfactual flip rate: how often the approve/deny label changes when only one demographic field changes. I report this rate overall and separately for race, gender, and age swaps. I also report approval-rate gaps across demographic groups. Among flipped pairs, I use a fixed-rubric LLM judge to measure the demographic-mention rate, meaning how often the reasoning text explicitly mentions the changed demographic field, and the stated-reason divergence rate, meaning how often the two paired explanations give materially different reasons for the decisions. To validate the judge, I manually label at least 50 flipped pairs as a gold set and report agreement between my labels and the judge.
+
+Qualitatively, I focus on flipped pairs where the denied applicant's explanation does not mention the changed demographic field, even though the paired application was approved. These cases directly connect to the ethical concern: in lending, a denied applicant should receive a clear and accurate reason, not just a plausible-sounding justification. I read these cases to ask whether the explanation actually explains the denial, or whether it gives a plausible reason that applies equally to both demographic twins.
+
+\bibliography{references}
+\end{document}

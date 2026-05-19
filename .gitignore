@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Data and outputs
+data/raw/
+data/interim/
+results/*.jsonl
+results/*.csv
+results/*.parquet
+
+# LaTeX build files
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
