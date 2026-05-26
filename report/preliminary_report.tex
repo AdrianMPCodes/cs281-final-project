@@ -1,0 +1,282 @@
+\documentclass{article}
+
+\usepackage[preprint]{neurips_2023}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+
+
+\title{Trusting the Trace: Auditing LLM Chain-of-Thought Faithfulness in Loan Underwriting \\ \large{Preliminary Report}}
+
+
+\author{%
+  Adrian Mendoza Perez \\
+  Department of Computer Science \\
+  Stanford University \\
+  \texttt{mendy@stanford.edu} \\
+}
+
+
+\begin{document}
+
+
+\maketitle
+
+
+\begin{abstract}
+  This preliminary report describes progress toward auditing whether the reasoning traces produced by frontier LLMs faithfully reveal the basis for their lending decisions when demographic counterfactuals change the outcome. We have (i) constructed the lending subset of the \texttt{Anthropic/discrim-eval} dataset, yielding 1{,}485 prompts spanning 11 lending scenarios fully crossed over 9 ages, 3 genders, and 5 races; (ii) enumerated 10{,}395 counterfactual prompt pairs that vary in exactly one demographic field; and (iii) characterized the prompt-level text variation within those pairs. A non-trivial preliminary finding is that the ``identical except for the demographic field'' framing requires a caveat: pronoun and grammar substitutions cause gender-swap pairs to differ in a mean of 9.05 words (median 7) rather than the single demographic token assumed by the proposal. This has direct consequences for how we interpret demographic-mention rates in reasoning traces. Model-evaluation runs across GPT-5.5, Claude Opus 4.7, and DeepSeek-R1 are queued. As a first end-to-end check we ran the full grid through \texttt{gpt-4o-mini} (Section~\ref{sec:baseline-run}): the overall counterfactual flip rate is 2.58\% (race 2.22\%, gender 2.69\%, age 2.73\%), and on flipped age pairs only 6.8\% of reason texts mention age at all. Marginal approval rates are nearly identical across all groups ($<2$\,pp spread), but the paired flip analysis reveals selective sensitivity those marginals hide --- most clearly on the \texttt{male}--\texttt{non-binary} axis (3.64\% flip rate, the highest in the run).
+\end{abstract}
+
+
+\section{Introduction}
+When a bank rejects a mortgage application, federal law (Regulation B \S 1002.9) requires a specific reason for the adverse action. As lenders increasingly automate underwriting with large language models, there is a real risk that model-generated explanations will be treated as evidence that a decision was properly justified \citep{tamkin2023evaluating, haim2024whats}. If those explanations are not faithful to the actual basis of the decision \citep{turpin2023language, lanham2023measuring, chen2025reasoning, baker2025monitoring}, an applicant could receive a denial that appears to satisfy the law while obscuring the real reason.
+
+This project audits that concern by feeding counterfactually paired loan applications --- identical except for the applicant's race, gender, or age --- to three frontier reasoning models, and measuring (a) the rate at which the approve/deny label flips and (b) whether the model's stated reasoning, on those flipped pairs, mentions the demographic field that actually drove the flip. This preliminary report documents the data construction, methodology, the audit pipeline at its current state of completion, and intermediate empirical findings about the dataset itself that constrain how downstream model-evaluation results should be interpreted.
+
+
+\section{Related Work}
+% Deferred to final report.
+
+
+\section{Data}
+\label{sec:data}
+
+\paragraph{Source.} The primary dataset is \texttt{Anthropic/discrim-eval} \citep{tamkin2023evaluating}, the \texttt{explicit} split, which contains 9{,}450 synthetic decision prompts. Each prompt is a fully filled template constructed from one of 70 decision-question stems by inserting an applicant's age (one of 9 values: 20, 30, \ldots, 100), gender (\texttt{female}, \texttt{male}, \texttt{non-binary}), and race (\texttt{white}, \texttt{Black}, \texttt{Asian}, \texttt{Hispanic}, \texttt{Native American}). The grid is fully crossed: every (scenario, age, gender, race) cell contains exactly one prompt.
+
+\paragraph{Lending subset.} The proposal restricts attention to lending and financial decisions. We retained the following 11 decision-question IDs after manual inspection of all 70 stems: mortgage approvals (qids 9, 29), small-business loans (qids 12, 87, 94), housing-authority lease (qid 24), startup funding (qid 34), credit-limit increase (qid 55), co-signed mortgage (qid 65), general loan approval (qid 70), and commercial property deed (qid 89). This yields a clean $11 \times 9 \times 3 \times 5 = 1{,}485$ prompt grid. We verified completeness: every cell contains exactly one prompt. We excluded scenarios that mention finance only incidentally (e.g., security clearance, visa) so that every retained prompt yields a binary lending decision.
+
+\paragraph{Prompt length.} Filtered prompts are 569--921 characters long (mean 732, median 731), or roughly 180 tokens. This makes the full audit, across three models and a baseline-vs-mitigation pair, computationally tractable at $1{,}485 \times 3 \times 2 = 8{,}910$ generations.
+
+\paragraph{Counterfactual pair construction.} For each scenario, we construct three kinds of counterfactual pairs:
+\begin{itemize}
+  \item \textbf{Age pairs}: holding (gender, race) fixed, vary age. $\binom{9}{2}=36$ pairs per (gender, race) cell, $\times 3 \times 5 = 540$ pairs per scenario.
+  \item \textbf{Gender pairs}: holding (race, age) fixed, vary gender. $\binom{3}{2}=3$ pairs per (race, age) cell, $\times 5 \times 9 = 135$ pairs per scenario.
+  \item \textbf{Race pairs}: holding (gender, age) fixed, vary race. $\binom{5}{2}=10$ pairs per (gender, age) cell, $\times 3 \times 9 = 270$ pairs per scenario.
+\end{itemize}
+That is $945$ pairs per scenario and $\mathbf{10{,}395}$ pairs across the full lending subset. Reported flip rates in the final report will be stratified by the field that was swapped.
+
+
+\section{Method}
+\label{sec:method}
+
+\paragraph{Models.} The plan is to evaluate three frontier reasoning models: GPT-5.5 (OpenAI), Claude Opus 4.7 (Anthropic), and DeepSeek-R1 (DeepSeek). Each prompt is wrapped in a fixed instruction that requests a binary \texttt{APPROVE}/\texttt{DENY} label followed by a short natural-language reason, in a parseable format. Where the model exposes a separate reasoning trace (e.g., Anthropic's \texttt{thinking} field, OpenAI's reasoning summary), that trace is logged as the chain-of-thought; otherwise the inline reason is treated as the closest available proxy. Per-row metadata includes the model snapshot, whether a separate reasoning trace was returned, and whether output parsing succeeded.
+
+\paragraph{Conditions.} Two prompt conditions are run for every (model, prompt) pair, following \citet{tamkin2023evaluating}:
+\begin{itemize}
+  \item \textbf{Baseline}: the bare lending prompt with the binary-output instruction.
+  \item \textbf{Mitigation}: a prefix instructing the model to ignore the applicant's race, gender, and age in reaching its decision.
+\end{itemize}
+
+\paragraph{Primary outcomes.} For each pair, we record whether the approve/deny label flipped. We report (i) the overall counterfactual flip rate, stratified by which field was swapped; (ii) per-group approval-rate gaps; and (iii) on flipped pairs, the demographic-mention rate and the stated-reason divergence rate, scored by a fixed-rubric LLM judge (rubric in \texttt{docs/judge\_rubric.md}). The judge is validated on a hand-labeled set of at least 50 flipped pairs.
+
+\paragraph{Faithfulness operationalization.} The central claim of the audit is that, on a flipped pair, a \emph{faithful} reasoning trace would mention the only field that differed between the two prompts. We therefore treat \emph{not mentioning the changed demographic field on a flipped pair} as the operational signal of unfaithfulness. Section~\ref{sec:caveat} below documents a measurement caveat we surfaced in preliminary analysis: under gender swaps, surface text variation extends beyond the demographic token itself.
+
+
+\section{Preliminary Experiments}
+\label{sec:prelim}
+
+At this stage we have completed dataset construction, pair enumeration, and a sanity-check analysis of prompt-level variation within counterfactual pairs. Model evaluation calls are not yet run at scale; the API client is wired up and a pilot has confirmed that the parsing format succeeds on a small sample, but full-grid results across the three target models are deferred to the final report. The experiments below are therefore data-side and pipeline-side findings.
+
+\subsection{Lending subset composition}
+The lending subset contains 1{,}485 prompts across 11 scenarios, fully balanced across the demographic grid (Section~\ref{sec:data}). This grid is large enough to support per-(scenario, swap-type) breakdowns, but small enough --- 8{,}910 total generations including the mitigation condition --- to be tractable across three frontier APIs on a student budget.
+
+\subsection{Within-pair text variation}
+\label{sec:caveat}
+
+The proposal frames each counterfactual pair as ``identical except for one demographic field.'' We tested how literally this holds. For every pair, we computed the number of words changed (additions, deletions, or substitutions) between the two paired prompts using a token-level diff. Table~\ref{tab:diffs} reports the distribution.
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{lrrrrr}
+    \toprule
+    Swap type & $n$ pairs & mean & median & p90 & max \\
+    \midrule
+    Age    & 5{,}940 & 4.54 &  3 & 10 & 44 \\
+    Race   & 2{,}970 & 4.69 &  3 & 10 & 47 \\
+    Gender & 1{,}485 & 9.05 &  7 & 16 & 49 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Word-level diff between paired prompts in the lending subset of \texttt{Anthropic/discrim-eval}, by the demographic field that was swapped. Counts reflect the number of word positions that were inserted, deleted, or substituted.}
+  \label{tab:diffs}
+\end{table}
+
+The age and race pairs typically differ by 3 words (the demographic adjective and 1--2 nearby tokens such as articles); 29\% of race pairs and 29\% of age pairs differ by more than 4 words. Gender pairs differ much more: a mean of 9 words and \textbf{78\% of pairs differ by more than 4 words}. The cause is pronoun and possessive substitution (``she/her/hers'' vs. ``he/his/his'' vs. ``they/their/theirs'') propagating through the prompt body, plus occasional grammatical re-phrasing in the template fill-in. The maximum observed word diff in a gender pair was 49.
+
+\paragraph{Why it matters.} This is a measurement caveat for the central faithfulness signal. If a flipped gender pair's reasoning text mentions a feature that happens to have been re-phrased between the two prompts (e.g., a possessive construction), the demographic-mention judge could plausibly count that as on-topic explanation when the actual driver remains the gender token. Concretely, we will need to: (a) restrict the strongest faithfulness claims to race and age pairs, where the pair really is near-token-identical; (b) when reporting gender-pair faithfulness, control for whether the judge's ``mention'' triggered on the gender adjective itself or on incidentally rephrased pronoun-bearing material; and (c) consider as a robustness check a constructed paraphrase-invariant counterfactual built by manually neutralizing pronouns.
+
+\subsection{Judge rubric}
+The fixed-rubric LLM judge consumes a pair of (decision, reasoning) tuples plus the changed demographic field and returns two ordinal labels: \texttt{demographic\_mention} $\in$ \{\texttt{yes}, \texttt{no}, \texttt{unclear}\} and \texttt{stated\_reason\_divergence} $\in$ \{\texttt{same}, \texttt{different}, \texttt{unclear}\}. The rubric is committed in \texttt{docs/judge\_rubric.md}. Gold-label validation on $\geq 50$ hand-labeled flipped pairs is queued for the final report.
+
+\subsection{Baseline run: gpt-4o-mini on the full grid}
+\label{sec:baseline-run}
+
+To produce a first end-to-end signal before the three target frontier models are wired up, we ran the full lending grid through \texttt{gpt-4o-mini} (OpenAI), $T=0$, with the parsing format described in Section~\ref{sec:method}. All 1{,}485 prompts parsed cleanly ($0$ errors, $0$ parse failures). The judge was then run on all $268$ flipped pairs. Tables~\ref{tab:flip-rates} through \ref{tab:judge} report the results; Table~\ref{tab:direction} reports the direction of flips.
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{lrrr}
+    \toprule
+    Swap type & Flips & Pairs & Flip rate \\
+    \midrule
+    Age            & 162 &  5{,}940 & 2.73\% \\
+    Gender         &  40 &  1{,}485 & 2.69\% \\
+    Race           &  66 &  2{,}970 & 2.22\% \\
+    \midrule
+    \textbf{Overall} & \textbf{268} & \textbf{10{,}395} & \textbf{2.58\%} \\
+    \bottomrule
+  \end{tabular}
+  \caption{Counterfactual flip rates for \texttt{gpt-4o-mini} on the lending subset, by the demographic field swapped. A pair is ``flipped'' if the model approves one twin and denies the other.}
+  \label{tab:flip-rates}
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{lrrlr}
+    \toprule
+    Race & Approve \% & \quad & Gender & Approve \% \\
+    \midrule
+    white            & 70.37\% & & female      & 71.92\% \\
+    Black            & 72.05\% & & male        & 71.11\% \\
+    Asian            & 70.37\% & & non-binary  & 70.71\% \\
+    Hispanic         & 71.72\% & &             &         \\
+    Native American  & 71.72\% & &             &         \\
+    \bottomrule
+  \end{tabular}
+  \caption{Marginal approval rates by demographic group (\texttt{gpt-4o-mini}, $n=297$ per race, $n=495$ per gender). Marginals are within a $<2$\,pp band, but the paired flip analysis below reveals selective sensitivity that the marginals hide.}
+  \label{tab:marginals}
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{lrrr}
+    \toprule
+    Pair & Flips & Pairs & Rate \\
+    \midrule
+    \multicolumn{4}{l}{\emph{Race pairs}} \\
+    Asian $\leftrightarrow$ Black              & 9 & 297 & 3.03\% \\
+    Asian $\leftrightarrow$ white              & 8 & 297 & 2.69\% \\
+    Hispanic $\leftrightarrow$ white           & 8 & 297 & 2.69\% \\
+    Black $\leftrightarrow$ white              & 7 & 297 & 2.36\% \\
+    Asian $\leftrightarrow$ Hispanic           & 6 & 297 & 2.02\% \\
+    Asian $\leftrightarrow$ Native American    & 6 & 297 & 2.02\% \\
+    Hispanic $\leftrightarrow$ Native American & 6 & 297 & 2.02\% \\
+    Native American $\leftrightarrow$ white    & 6 & 297 & 2.02\% \\
+    Black $\leftrightarrow$ Hispanic           & 5 & 297 & 1.68\% \\
+    Black $\leftrightarrow$ Native American    & 5 & 297 & 1.68\% \\
+    \midrule
+    \multicolumn{4}{l}{\emph{Gender pairs}} \\
+    male $\leftrightarrow$ non-binary    & 18 & 495 & 3.64\% \\
+    female $\leftrightarrow$ non-binary  & 14 & 495 & 2.83\% \\
+    female $\leftrightarrow$ male        &  8 & 495 & 1.62\% \\
+    \bottomrule
+  \end{tabular}
+  \caption{Flip rates broken down by which two groups were swapped (\texttt{gpt-4o-mini}). The single highest-rate axis in the entire run is \texttt{male} vs.\ \texttt{non-binary}.}
+  \label{tab:pair-breakdown}
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{lrr}
+    \toprule
+    Denied group & Count & Share of flipped pairs \\
+    \midrule
+    \multicolumn{3}{l}{\emph{Race flips ($n=66$)}} \\
+    white            & 21 & 31.82\% \\
+    Asian            & 21 & 31.82\% \\
+    Hispanic         &  9 & 13.64\% \\
+    Native American  &  8 & 12.12\% \\
+    Black            &  7 & 10.61\% \\
+    \midrule
+    \multicolumn{3}{l}{\emph{Gender flips ($n=40$)}} \\
+    non-binary  & 20 & 50.00\% \\
+    male        & 14 & 35.00\% \\
+    female      &  6 & 15.00\% \\
+    \midrule
+    \multicolumn{3}{l}{\emph{Age flips ($n=162$)}} \\
+    older twin  & 79 & 48.77\% \\
+    younger twin & 83 & 51.23\% \\
+    \bottomrule
+  \end{tabular}
+  \caption{Direction of flips: within each set of flipped pairs, which group received the \texttt{DENY} label. Gender is the most lopsided axis --- \texttt{non-binary} accounts for half of all flipped denials despite occupying only one third of the prompt grid. Race direction runs opposite the naive prior: \texttt{white} and \texttt{Asian} take the denial more often than \texttt{Black} or \texttt{Native American} in flipped race pairs. Age is essentially symmetric.}
+  \label{tab:direction}
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{lrrrr}
+    \toprule
+    Swap type & $n$ flipped & mention=yes & mention=no & reasons=different \\
+    \midrule
+    Race    & 66  & 89.39\% & 10.61\% & 100.00\% \\
+    Gender  & 40  & 47.50\% & 52.50\% & 100.00\% \\
+    Age     & 162 &  6.79\% & 93.21\% & 100.00\% \\
+    \midrule
+    \textbf{Overall} & \textbf{268} & \textbf{33.21\%} & \textbf{66.79\%} & \textbf{100.00\%} \\
+    \bottomrule
+  \end{tabular}
+  \caption{LLM-judge results on flipped pairs (\texttt{gpt-4o-mini} as both decision model and judge). ``mention=yes'' means the judge ruled that at least one of the two reason texts explicitly references the changed demographic field. The age row is the most credible signal: on 93\% of flipped age pairs, neither reason mentions age. The race ``89\%'' figure should be read with caution (see Section~\ref{sec:baseline-caveats}). The 100\% reason-divergence figure is a trivial consequence of the rubric and is not load-bearing.}
+  \label{tab:judge}
+\end{table}
+
+\subsubsection*{Caveats on the baseline run}
+\label{sec:baseline-caveats}
+Four caveats temper the interpretation of these numbers:
+\begin{enumerate}
+  \item \textbf{Judge calibration.} Manual spot-checks of race-flip pairs the judge scored \texttt{yes} found cases where neither reason text mentions race (e.g., reasons of the form ``irregular income and lack of significant collateral''). The judge appears to leak signal from the swap-field label in its own input rather than reading the reason text. The race ``89.39\%'' mention rate is therefore almost certainly inflated; the age ``6.79\%'' is more credible because the same failure mode would push it up, not down. A stricter judge prompt and a hand-labeled gold set of $\geq 50$ pairs are queued.
+  \item \textbf{Reason-divergence is trivial under this rubric.} Whenever \texttt{gpt-4o-mini} flips the label, it rewrites the justification (typically citing the same prompt facts with opposite valence). The rubric counts any such rewrite as ``different,'' yielding 100\%. A more substantive rubric (``do the two reasons cite \emph{different underlying features?}'') is needed.
+  \item \textbf{\texttt{gpt-4o-mini} $\neq$ frontier reasoning models.} This run substitutes for, but does not replace, the GPT-5.5, Claude Opus 4.7, and DeepSeek-R1 runs called for by the proposal. Direction and rate of flips are model-dependent.
+  \item \textbf{No separate reasoning trace.} \texttt{gpt-4o-mini} does not expose a chain-of-thought trace, so the ``reason'' here is the inline post-decision justification, not a CoT. CoT-vs-explanation comparison is deferred to the runs that do expose a trace.
+\end{enumerate}
+
+\subsubsection*{Substantive early observations}
+With those caveats: (i) marginal approval rates are nearly flat across groups (Table~\ref{tab:marginals}), but the paired flip analysis surfaces selective sensitivity the marginals hide; (ii) the strongest single-axis effect is gender, where \texttt{non-binary} takes 50\% of flipped denials and \texttt{male}--\texttt{non-binary} is the highest-rate pair in the entire run (3.64\%); and (iii) on age flips, the model essentially never tells the user that age moved its decision --- only 6.8\% of flipped age pairs have any age mention in either reason text.
+
+
+\section{Intermediate Conclusions}
+\label{sec:intermediate}
+
+Two intermediate conclusions can be drawn at this stage, both of which inform how the final results should be read.
+
+\paragraph{1. The audit pipeline is feasible at the planned scale.} The lending subset is $1{,}485$ prompts, fully crossed across $11\times 9\times 3\times 5$ cells, supporting $10{,}395$ counterfactual pairs stratified by swapped field. The compute and dollar cost of running three frontier models across baseline and mitigation conditions ($8{,}910$ generations of $\sim$180-token prompts) is well within a student-project budget, and a parsing-format pilot succeeded. We do not anticipate scope cuts before the final report.
+
+\paragraph{2. Gender-pair faithfulness measurements need a caveat.} The proposal's clean ``one field differs'' framing holds tightly for race and age swaps, but breaks down for gender swaps: a mean of 9 words change per pair (vs.\ 4.5--4.7 for race/age), and 78\% of pairs change more than 4 words. This is not a bug in the dataset --- it is the cost of producing grammatical English under pronoun substitution --- but it does mean the demographic-mention rate on gender pairs is a noisier proxy for faithfulness than on race or age pairs. The final report will report gender results separately and add the paraphrase-invariant robustness check described in Section~\ref{sec:caveat}, rather than pooling all three swap types into a single headline number.
+
+A third question --- whether the mitigation prefix actually reduces flips rather than just changing what models are willing to say --- can only be answered after the full evaluation runs. That is the headline experiment of the final report.
+
+
+\section{Limitations and Next Steps}
+
+\paragraph{Limitations of this preliminary report.} Model-evaluation numbers are reported for a single non-frontier model (\texttt{gpt-4o-mini}) and have not yet been replicated on the three target frontier reasoning models. The LLM judge has not been validated against a hand-labeled gold set, and Section~\ref{sec:baseline-caveats} documents a specific calibration failure on race pairs. The mitigation condition has not been run yet.
+
+\paragraph{Next steps (in order).}
+\begin{enumerate}
+  \item Lock the API wrappers for all three target models and run the full $1{,}485$-prompt baseline grid against each.
+  \item Run the mitigation condition (race/gender/age-ignoring prefix) against the same grid.
+  \item Score all flipped pairs with the fixed-rubric LLM judge and validate the judge against a gold set of $\geq 50$ hand-labeled flipped pairs.
+  \item Report flip rates by swap type, demographic-mention and stated-reason-divergence rates on flipped pairs, and the effect of the mitigation prefix on each.
+  \item Qualitative analysis of denied applicants whose explanation never mentions the changed demographic field.
+\end{enumerate}
+
+
+\section{Broader Impacts}
+% Deferred to final report.
+
+
+\section*{Acknowledgments}
+% Deferred.
+
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+
+\end{document}
