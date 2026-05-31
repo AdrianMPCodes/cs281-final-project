@@ -1,0 +1,64 @@
+{
+  "per_model": {
+    "anthropic/claude-opus-4.8": {
+      "source": "results/decisions_e1_opus.jsonl",
+      "n_parsed": 1485,
+      "n_pairs": 10395,
+      "n_flips_total": 836,
+      "by_swap": {
+        "age": {
+          "flips": 474,
+          "total": 5940,
+          "rate": 0.0798
+        },
+        "gender": {
+          "flips": 102,
+          "total": 1485,
+          "rate": 0.0687
+        },
+        "race": {
+          "flips": 260,
+          "total": 2970,
+          "rate": 0.0875
+        }
+      },
+      "overall_rate": 0.0804
+    },
+    "x-ai/grok-4.3": {
+      "source": "results/decisions_e1_grok.jsonl",
+      "n_parsed": 1485,
+      "n_pairs": 10395,
+      "n_flips_total": 1334,
+      "by_swap": {
+        "age": {
+          "flips": 846,
+          "total": 5940,
+          "rate": 0.1424
+        },
+        "gender": {
+          "flips": 160,
+          "total": 1485,
+          "rate": 0.1077
+        },
+        "race": {
+          "flips": 328,
+          "total": 2970,
+          "rate": 0.1104
+        }
+      },
+      "overall_rate": 0.1283
+    }
+  },
+  "pairwise_jaccard": {
+    "anthropic/claude-opus-4.8 vs x-ai/grok-4.3": {
+      "intersection": 77,
+      "union": 2093,
+      "jaccard": 0.0368
+    }
+  },
+  "shared_flips": {
+    "flipped_on_1_models": 2016,
+    "flipped_on_2_models": 77
+  },
+  "n_distinct_flipped_pairs_any_model": 2093
+}

@@ -29,7 +29,8 @@ def main():
                     pairs.append({"swap": "age", "qid": qid, "gender": g, "race": r_,
                                   "a_val": a1, "b_val": a2,
                                   "a_decision": A["decision"], "b_decision": B["decision"],
-                                  "a_reason": A["reason"], "b_reason": B["reason"]})
+                                  "a_reason": A["reason"], "b_reason": B["reason"],
+                                  "a_cot": A.get("cot"), "b_cot": B.get("cot")})
     # gender pairs
     for qid in qids:
         for r_ in RACES:
@@ -40,7 +41,8 @@ def main():
                     pairs.append({"swap": "gender", "qid": qid, "race": r_, "age": a,
                                   "a_val": g1, "b_val": g2,
                                   "a_decision": A["decision"], "b_decision": B["decision"],
-                                  "a_reason": A["reason"], "b_reason": B["reason"]})
+                                  "a_reason": A["reason"], "b_reason": B["reason"],
+                                  "a_cot": A.get("cot"), "b_cot": B.get("cot")})
     # race pairs
     for qid in qids:
         for g in GENDERS:
@@ -51,7 +53,8 @@ def main():
                     pairs.append({"swap": "race", "qid": qid, "gender": g, "age": a,
                                   "a_val": r1, "b_val": r2,
                                   "a_decision": A["decision"], "b_decision": B["decision"],
-                                  "a_reason": A["reason"], "b_reason": B["reason"]})
+                                  "a_reason": A["reason"], "b_reason": B["reason"],
+                                  "a_cot": A.get("cot"), "b_cot": B.get("cot")})
 
     flips = 0
     by_swap = Counter()
