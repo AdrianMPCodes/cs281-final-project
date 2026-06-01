@@ -1,0 +1,139 @@
+{
+  "per_model": {
+    "deepseek/deepseek-v4-pro": {
+      "source": "results/decisions_e1_deepseek.jsonl",
+      "n_parsed": 1481,
+      "n_pairs": 10339,
+      "n_flips_total": 2395,
+      "by_swap": {
+        "age": {
+          "flips": 1443,
+          "total": 5908,
+          "rate": 0.2442
+        },
+        "gender": {
+          "flips": 311,
+          "total": 1477,
+          "rate": 0.2106
+        },
+        "race": {
+          "flips": 641,
+          "total": 2954,
+          "rate": 0.217
+        }
+      },
+      "overall_rate": 0.2316
+    },
+    "openai/gpt-5.5": {
+      "source": "results/decisions_e1_gpt55.jsonl",
+      "n_parsed": 1485,
+      "n_pairs": 10395,
+      "n_flips_total": 1086,
+      "by_swap": {
+        "age": {
+          "flips": 594,
+          "total": 5940,
+          "rate": 0.1
+        },
+        "gender": {
+          "flips": 154,
+          "total": 1485,
+          "rate": 0.1037
+        },
+        "race": {
+          "flips": 338,
+          "total": 2970,
+          "rate": 0.1138
+        }
+      },
+      "overall_rate": 0.1045
+    },
+    "x-ai/grok-4.3": {
+      "source": "results/decisions_e1_grok.jsonl",
+      "n_parsed": 1485,
+      "n_pairs": 10395,
+      "n_flips_total": 1334,
+      "by_swap": {
+        "age": {
+          "flips": 846,
+          "total": 5940,
+          "rate": 0.1424
+        },
+        "gender": {
+          "flips": 160,
+          "total": 1485,
+          "rate": 0.1077
+        },
+        "race": {
+          "flips": 328,
+          "total": 2970,
+          "rate": 0.1104
+        }
+      },
+      "overall_rate": 0.1283
+    },
+    "anthropic/claude-opus-4.8": {
+      "source": "results/decisions_e1_opus.jsonl",
+      "n_parsed": 1485,
+      "n_pairs": 10395,
+      "n_flips_total": 836,
+      "by_swap": {
+        "age": {
+          "flips": 474,
+          "total": 5940,
+          "rate": 0.0798
+        },
+        "gender": {
+          "flips": 102,
+          "total": 1485,
+          "rate": 0.0687
+        },
+        "race": {
+          "flips": 260,
+          "total": 2970,
+          "rate": 0.0875
+        }
+      },
+      "overall_rate": 0.0804
+    }
+  },
+  "pairwise_jaccard": {
+    "anthropic/claude-opus-4.8 vs deepseek/deepseek-v4-pro": {
+      "intersection": 331,
+      "union": 2900,
+      "jaccard": 0.1141
+    },
+    "anthropic/claude-opus-4.8 vs openai/gpt-5.5": {
+      "intersection": 151,
+      "union": 1771,
+      "jaccard": 0.0853
+    },
+    "anthropic/claude-opus-4.8 vs x-ai/grok-4.3": {
+      "intersection": 77,
+      "union": 2093,
+      "jaccard": 0.0368
+    },
+    "deepseek/deepseek-v4-pro vs openai/gpt-5.5": {
+      "intersection": 346,
+      "union": 3135,
+      "jaccard": 0.1104
+    },
+    "deepseek/deepseek-v4-pro vs x-ai/grok-4.3": {
+      "intersection": 341,
+      "union": 3388,
+      "jaccard": 0.1006
+    },
+    "openai/gpt-5.5 vs x-ai/grok-4.3": {
+      "intersection": 59,
+      "union": 2361,
+      "jaccard": 0.025
+    }
+  },
+  "shared_flips": {
+    "flipped_on_1_models": 3325,
+    "flipped_on_2_models": 1023,
+    "flipped_on_3_models": 92,
+    "flipped_on_4_models": 1
+  },
+  "n_distinct_flipped_pairs_any_model": 4441
+}

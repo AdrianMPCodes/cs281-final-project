@@ -1,0 +1,146 @@
+{
+  "deepseek": {
+    "source": "results/judged_e1_deepseek_reason.jsonl",
+    "n_judged": 2395,
+    "n_total_pairs_in_file": 2395,
+    "per_swap": {
+      "age": {
+        "n_flips": 1443,
+        "mention_this_axis": 0.2342,
+        "mention_any_axis": 0.2772,
+        "overlap_same": 0.2481,
+        "overlap_partial": 0.7089,
+        "overlap_different": 0.043
+      },
+      "gender": {
+        "n_flips": 311,
+        "mention_this_axis": 0.0675,
+        "mention_any_axis": 0.2315,
+        "overlap_same": 0.2637,
+        "overlap_partial": 0.7042,
+        "overlap_different": 0.0322
+      },
+      "race": {
+        "n_flips": 641,
+        "mention_this_axis": 0.0,
+        "mention_any_axis": 0.2465,
+        "overlap_same": 0.234,
+        "overlap_partial": 0.7332,
+        "overlap_different": 0.0328
+      }
+    },
+    "overall": {
+      "mention_this_axis": 0.1499,
+      "mention_any_axis": 0.263,
+      "overlap_same": 0.2464
+    }
+  },
+  "gpt55": {
+    "source": "results/judged_e1_gpt55_reason.jsonl",
+    "n_judged": 1086,
+    "n_total_pairs_in_file": 1086,
+    "per_swap": {
+      "age": {
+        "n_flips": 594,
+        "mention_this_axis": 0.0135,
+        "mention_any_axis": 0.0438,
+        "overlap_same": 0.4394,
+        "overlap_partial": 0.5606,
+        "overlap_different": 0.0
+      },
+      "gender": {
+        "n_flips": 154,
+        "mention_this_axis": 0.039,
+        "mention_any_axis": 0.039,
+        "overlap_same": 0.4351,
+        "overlap_partial": 0.5649,
+        "overlap_different": 0.0
+      },
+      "race": {
+        "n_flips": 338,
+        "mention_this_axis": 0.0118,
+        "mention_any_axis": 0.0355,
+        "overlap_same": 0.4112,
+        "overlap_partial": 0.5888,
+        "overlap_different": 0.0
+      }
+    },
+    "overall": {
+      "mention_this_axis": 0.0166,
+      "mention_any_axis": 0.0405,
+      "overlap_same": 0.43
+    }
+  },
+  "grok": {
+    "source": "results/judged_e1_grok_reason.jsonl",
+    "n_judged": 1334,
+    "n_total_pairs_in_file": 1334,
+    "per_swap": {
+      "age": {
+        "n_flips": 846,
+        "mention_this_axis": 0.4527,
+        "mention_any_axis": 0.4574,
+        "overlap_same": 0.2057,
+        "overlap_partial": 0.7719,
+        "overlap_different": 0.0225
+      },
+      "gender": {
+        "n_flips": 160,
+        "mention_this_axis": 0.0063,
+        "mention_any_axis": 0.3,
+        "overlap_same": 0.25,
+        "overlap_partial": 0.7438,
+        "overlap_different": 0.0063
+      },
+      "race": {
+        "n_flips": 328,
+        "mention_this_axis": 0.0,
+        "mention_any_axis": 0.2713,
+        "overlap_same": 0.3018,
+        "overlap_partial": 0.689,
+        "overlap_different": 0.0091
+      }
+    },
+    "overall": {
+      "mention_this_axis": 0.2879,
+      "mention_any_axis": 0.3928,
+      "overlap_same": 0.2346
+    }
+  },
+  "opus": {
+    "source": "results/judged_e1_opus_reason.jsonl",
+    "n_judged": 836,
+    "n_total_pairs_in_file": 836,
+    "per_swap": {
+      "age": {
+        "n_flips": 474,
+        "mention_this_axis": 0.0506,
+        "mention_any_axis": 0.097,
+        "overlap_same": 0.0464,
+        "overlap_partial": 0.9536,
+        "overlap_different": 0.0
+      },
+      "gender": {
+        "n_flips": 102,
+        "mention_this_axis": 0.0588,
+        "mention_any_axis": 0.0588,
+        "overlap_same": 0.1275,
+        "overlap_partial": 0.8725,
+        "overlap_different": 0.0
+      },
+      "race": {
+        "n_flips": 260,
+        "mention_this_axis": 0.0385,
+        "mention_any_axis": 0.0846,
+        "overlap_same": 0.0462,
+        "overlap_partial": 0.9538,
+        "overlap_different": 0.0
+      }
+    },
+    "overall": {
+      "mention_this_axis": 0.0478,
+      "mention_any_axis": 0.0885,
+      "overlap_same": 0.0562
+    }
+  }
+}
